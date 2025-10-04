@@ -31,14 +31,15 @@ on:
     branches: [ "main" ]
 
 env:
-  AWS_REGION: MY_AWS_REGION                   # set this to your preferred AWS region, e.g. us-west-1
-  ECR_REPOSITORY: MY_ECR_REPOSITORY           # set this to your Amazon ECR repository name
-  ECS_SERVICE: MY_ECS_SERVICE                 # set this to your Amazon ECS service name
-  ECS_CLUSTER: MY_ECS_CLUSTER                 # set this to your Amazon ECS cluster name
-  ECS_TASK_DEFINITION: MY_ECS_TASK_DEFINITION # set this to the path to your Amazon ECS task definition
-                                               # file, e.g. .aws/task-definition.json
-  CONTAINER_NAME: MY_CONTAINER_NAME           # set this to the name of the container in the
-                                               # containerDefinitions section of your task definition
+  AWS_REGION: ap-southeast-2                  # region for the ECR registry and ECS (ap-southeast-2)
+  ECR_REGISTRY: 070439404904.dkr.ecr.ap-southeast-2.amazonaws.com
+  ECR_REPOSITORY: notes-app                   # Amazon ECR repository name (image will be pushed to $ECR_REGISTRY/notes-app)
+  # NOTE: I set the cluster name from the ARN you provided (cluster/notes-app-cluster)
+  ECS_CLUSTER: notes-app-cluster              # ECS cluster name (you provided ARN: arn:aws:ecs:ap-southeast-2:070439404904:cluster/notes-app-cluster)
+  # ASSUMPTION: default service & task definition path — change as needed
+  ECS_SERVICE: notes-app-service              # <--- change to your actual ECS service name if different
+  ECS_TASK_DEFINITION: .aws/task-definition.json # path to task definition JSON in the repo; update if you store it elsewhere
+  CONTAINER_NAME: notes-app                    # container name in the task definition's containerDefinitions
 
 permissions:
   contents: read
@@ -67,12 +68,11 @@ jobs:
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        # prefer the explicit registry we set in env; the login step already authenticated
+        ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Build a docker container and
-        # push it to ECR so that it can
-        # be deployed to ECS.
+        # Build the docker image and push to the specified ECR registry/repository
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
