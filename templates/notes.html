@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Notes</title>
+    <!-- Inter font for nicer typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind Play CDN for quick styling (not for production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body { font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+    </style>
+  </head>
+  <body class="bg-gradient-to-b from-slate-50 to-white text-slate-900">
+    <div class="max-w-6xl mx-auto py-12 px-6">
+      <header class="mb-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div>
+          <h1 class="text-4xl font-extrabold tracking-tight text-slate-900">Notes</h1>
+          <p class="mt-2 text-sm text-slate-500">Create, view and sync your notes. Tailwind-powered modern UI.</p>
+        </div>
+        <div class="flex gap-3">
+          <a href="?" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-md text-sm text-slate-700 shadow-sm hover:shadow"> 
+            <!-- refresh icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v6h6M20 20v-6h-6"/></svg>
+            Refresh
+          </a>
+          <a href="/" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md text-sm shadow hover:bg-indigo-700">New note</a>
+        </div>
+      </header>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form column -->
+        <aside class="lg:col-span-1">
+          <div class="bg-white/80 backdrop-blur-lg border border-slate-100 p-6 rounded-2xl shadow">
+            <h2 class="text-lg font-semibold text-slate-900 mb-4">Add a note</h2>
+            <form method="post" action="/add" class="space-y-4" id="add-note-form">
+              <div>
+                <label class="text-sm font-medium text-slate-700">Title</label>
+                <input name="title" required class="mt-2 block w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-700">Content</label>
+                <textarea name="content" required rows="5" class="mt-2 block w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"></textarea>
+              </div>
+              <div>
+                <label class="text-sm font-medium text-slate-700">UserId</label>
+                <input name="user_id" {% if not default_user_id %}required{% endif %} value="{{ default_user_id or '' }}" class="mt-2 block w-full rounded-md border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500" />
+              </div>
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-slate-400">Saved to: <span class="font-medium text-slate-700">DynamoDB</span></div>
+                <input type="hidden" name="client_id" id="client_id_input" />
+                <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm shadow hover:bg-indigo-700" id="submit-btn"> 
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  Save note
+                </button>
+              </div>
+            </form>
+            <script>
+              // generate a client-side UUID for idempotency and prevent double submits
+              function uuidv4() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                  var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                  return v.toString(16);
+                });
+              }
+              (function(){
+                var form = document.getElementById('add-note-form');
+                var clientInput = document.getElementById('client_id_input');
+                var submitBtn = document.getElementById('submit-btn');
+                // Each time the form is shown, generate a fresh client id
+                clientInput.value = uuidv4();
+                form.addEventListener('submit', function(){
+                  // disable the button to avoid accidental double submits
+                  submitBtn.disabled = true;
+                });
+              })();
+            </script>
+          </div>
+        </aside>
+
+        <!-- Notes list -->
+        <main class="lg:col-span-2">
+          <div class="space-y-4">
+            {% for n in notes %}
+            <article class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-lg transition-shadow">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-xs text-indigo-600 font-semibold">Note {{ loop.index }} <span class="text-xs text-slate-400">({{ n.get(key_name) }})</span></div>
+                  <h3 class="mt-1 text-xl font-bold text-slate-900">{{ n.title }}</h3>
+                  <p class="mt-3 text-slate-700 whitespace-pre-wrap">{{ n.content }}</p>
+                  <div class="mt-4 text-xs text-slate-400">created: {{ n.created_at }} · updated: {{ n.updated_at }}</div>
+                </div>
+                <div class="flex-shrink-0 flex flex-col items-end gap-2">
+                  <a href="/edit?id={{ n.get(key_name) }}{% if n.get('UserId') %}&user_id={{ n.get('UserId') }}{% endif %}" class="text-sm text-slate-600 hover:underline">Edit</a>
+                  <form method="post" action="/delete" onsubmit="return confirm('Delete this note?');">
+                    <input type="hidden" name="id" value="{{ n.get(key_name) }}" />
+                    {% if n.get('UserId') %}
+                    <input type="hidden" name="user_id" value="{{ n.get('UserId') }}" />
+                    {% endif %}
+                    <button class="text-sm text-red-600 hover:underline">Delete</button>
+                  </form>
+                </div>
+              </div>
+            </article>
+            {% else %}
+            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow">No notes yet.</div>
+            {% endfor %}
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
